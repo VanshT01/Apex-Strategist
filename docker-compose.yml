@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: apex_strategist
+      POSTGRES_USER: apex
+      POSTGRES_PASSWORD: apex
+    ports:
+      - "5433:5432"
+    volumes:
+      - apex-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apex -d apex_strategist"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  apex-postgres:
