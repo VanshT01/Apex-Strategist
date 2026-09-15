@@ -1,281 +1,386 @@
 # Apex Strategist
 
-Apex Strategist is a portfolio-grade, historical Formula 1 race engineer simulator.
-It caches and normalizes real races through FastF1, then offers a recorded
-lap-by-lap replay or a continuous engineer mode where the user owns one driver's
-pit calls through a typed FastAPI/Next.js application.
+> A historical Formula 1 race-engineer simulator for replaying real races, testing alternative pit strategies, and comparing deterministic and Monte Carlo outcomes.
 
-> **Current scope:** Phases 1–6. The deterministic engine remains visible as the
-> expected-value anchor, with seeded, vectorized Monte Carlo distributions
-> layered on top. Machine-learning lap-time prediction remains deferred.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-000000?logo=vercel&logoColor=white)](https://apex-strategist-web.vercel.app/)
+[![Frontend](https://img.shields.io/badge/Frontend-Next.js-000000?logo=nextdotjs)](https://nextjs.org/)
+[![API](https://img.shields.io/badge/API-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Database](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
-## Milestone features
+**Live app:** https://apex-strategist-web.vercel.app/
 
-- Idempotent single-race and complete-season ingestion with `--force` refresh
-- Local FastF1 response cache; no download occurs in read API requests
-- PostgreSQL production schema with SQLAlchemy and Alembic
-- SQLite-compatible backend tests
-- Normalized seasons, events, sessions, drivers, results, laps, tyres, weather,
-  race-control messages, and derived pit-lane intervals
-- Typed, paginated FastAPI endpoints and OpenAPI docs
-- End-of-lap running order, gaps, recent pace, weather, race control, pit
-  history, stint timeline, pit-loss estimate, and likely rejoin window
-- Validated comparison of pit-now, delayed-pit, and stay-out strategies
-- Event/compound tyre-degradation baseline with explicit fallback metadata
-- Seeded 100–10,000-run Monte Carlo comparison with empirical calibration,
-  bounded fallbacks, compact outcome distributions, and reproducible results
-- Probabilistic rule-based recommendation, traffic/degradation risk,
-  deterministic comparison, and actual-strategy comparison persisted as a
-  versioned calculation artifact
-- Next.js race engineer dashboard, strategy lab, results, pace, and lap views
-- Playable lap-by-lap replay, animated leaderboard and race orbit, engineer
-  radio, decision mode, story chapters, expandable strategy cards, probability
-  explorer, and engineer notebook
+Apex Strategist caches and normalizes historical Formula 1 races through FastF1, then lets users replay races lap by lap or enter a continuous **Engineer Mode** where they control one driver's pit calls through a typed FastAPI + Next.js application.
+
+The deterministic strategy engine remains visible as the expected-value anchor, while seeded, vectorized Monte Carlo simulations model uncertainty around alternative decisions. Engineer Mode also supports a local learned pace model when sufficient historical evidence is available.
+
+## Highlights
+
+- Historical Formula 1 race ingestion through FastF1
+- Playable lap-by-lap race replay with animated leaderboard and race orbit
+- Continuous Engineer Mode with user-controlled pit calls
+- Pit-now, delayed-pit, and stay-out strategy comparisons
+- Seeded 100–10,000-run Monte Carlo simulations
+- Deterministic strategy baseline shown alongside probabilistic outcomes
+- Event- and compound-specific tyre degradation modeling
+- Traffic, warm-up, pit-loss, degradation, and nearby-car uncertainty
+- Strategy recommendations with probability distributions and risk indicators
+- Actual-strategy comparison against the recorded race
+- Local `hgb-pace-v2` learned pace model for eligible Engineer Mode cutoffs
 - Persisted scenario controls for pit-loss and tyre-degradation adjustments
-- Zod runtime validation, React Query caching/cancellation, responsive dark UI
-- Backend and frontend tests, linting, formatting, Docker, and CI
+- Typed FastAPI endpoints, OpenAPI docs, Zod runtime validation, and React Query caching
+- PostgreSQL + Alembic production schema with SQLite-compatible backend tests
+- Docker, CI, linting, formatting, frontend tests, and backend tests
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    U[User] --> W[Next.js web]
+    U[User] --> W[Next.js Web]
     W --> A[FastAPI API]
     A --> P[(PostgreSQL)]
-    F[FastF1] --> I[Explicit ingestion command]
-    I --> C[(Disk cache)]
-    I --> N[Normalization service]
+
+    F[FastF1] --> I[Explicit Ingestion Command]
+    I --> DC[(Disk Cache)]
+    I --> N[Normalization Service]
     N --> P
-    P --> A
-    P --> R[Race-state reconstruction]
-    R --> D[Deterministic strategy engine]
-    D --> C[Uncertainty calibration]
-    C --> M[Seeded vectorized Monte Carlo]
+
+    P --> R[Race-State Reconstruction]
+    R --> D[Deterministic Strategy Engine]
+    D --> UC[Uncertainty Calibration]
+    UC --> M[Seeded Vectorized Monte Carlo]
     M --> A
 ```
 
-The browser calls only FastAPI. Provider downloads happen only in the ingestion
-service. Route handlers call services and repositories; pandas/FastF1 objects
-never leak into API responses. See [architecture documentation](docs/architecture.md).
+The browser communicates only with FastAPI. Provider downloads occur exclusively through the ingestion service. Route handlers call services and repositories, and pandas/FastF1 objects never leak into API responses.
 
-## Technology
+See [`docs/architecture.md`](docs/architecture.md) for more detail.
 
-- Web: Next.js App Router, React, TypeScript, Tailwind CSS, React Query, Zod,
-  Recharts, Vitest, Testing Library
-- API: Python 3.11/3.12, FastAPI, Pydantic, SQLAlchemy, Alembic, pandas, NumPy,
-  FastF1, pytest, Ruff
-- Runtime: PostgreSQL 16, Docker Compose; SQLite fallback for tests
+## Tech Stack
 
-## macOS setup (exact commands)
+### Frontend
 
-Prerequisites: Docker Desktop, Python 3.12, Node.js 20.19+ or 22.13+, and npm.
-The Compose database is published on host port `5433` so it can coexist with a
-native PostgreSQL installation using the conventional port `5432`.
+- Next.js App Router
+- React
+- TypeScript
+- Tailwind CSS
+- React Query
+- Zod
+- Recharts
+- Vitest
+- Testing Library
+
+### Backend
+
+- Python 3.11 / 3.12
+- FastAPI
+- Pydantic
+- SQLAlchemy
+- Alembic
+- pandas
+- NumPy
+- FastF1
+- scikit-learn
+- pytest
+- Ruff
+
+### Runtime
+
+- PostgreSQL 16
+- Docker Compose
+- SQLite fallback for tests
+
+## Project Scope
+
+The current implementation covers Phases 1–6 of the project roadmap.
+
+The deterministic engine acts as the expected-value anchor, with seeded Monte Carlo distributions layered on top. Engineer Mode can additionally use a local histogram-gradient-boosting pace model when enough earlier-race evidence is available; broader machine-learning lap-time prediction remains outside the current scope.
+
+## Local Setup
+
+### Prerequisites
+
+Install:
+
+- Docker Desktop
+- Python 3.12
+- Node.js 20.19+, 22.13+, or 24+
+- npm
+
+The Compose database is exposed on host port `5433`, allowing it to coexist with a native PostgreSQL instance using the default `5432` port.
+
+### 1. Configure the environment
+
+From the repository root:
 
 ```bash
-cd "/Users/vanshtalreja/Formula 1"
 cp .env.example .env
+```
+
+### 2. Set up the project
+
+```bash
 make setup
 make db-up
 make migrate
 make ingest-demo
 ```
 
-The first demo ingestion downloads every Grand Prix in the 2024 calendar and
-can take several minutes. Later runs reuse `./data/fastf1`; already normalized
-sessions are skipped. To load another complete season, select one race, or
-refresh one race:
+The first demo ingestion downloads every Grand Prix in the configured demo season and can take several minutes. Later runs reuse `./data/fastf1`, and already-normalized sessions are skipped.
+
+### 3. Start the API
 
 ```bash
-PYTHONPATH=apps/api .venv/bin/python -m app.ingestion.cli ingest-season --year 2023
-PYTHONPATH=apps/api .venv/bin/python -m app.ingestion.cli ingest-race --year 2024 --event "Italian Grand Prix"
-PYTHONPATH=apps/api .venv/bin/python -m app.ingestion.cli ingest-race --year 2024 --event "British Grand Prix" --force
-```
-
-Start the API and web app in two terminals:
-
-```bash
-cd "/Users/vanshtalreja/Formula 1"
 make api
 ```
 
+### 4. Start the web app
+
+In another terminal:
+
 ```bash
-cd "/Users/vanshtalreja/Formula 1"
 make web
 ```
 
-Open `http://localhost:3001/analyze`. API docs are at
-`http://localhost:8000/docs`, and health is at
-`http://localhost:8000/api/v1/health`.
+Then open:
 
-## Development commands
+- Web app: `http://localhost:3001/analyze`
+- API docs: `http://localhost:8000/docs`
+- Health check: `http://localhost:8000/api/v1/health`
+
+## Data Ingestion
+
+Load another complete season:
 
 ```bash
-make db-up       # start PostgreSQL
-make migrate     # upgrade schema to Alembic head
-make migration-check # verify ORM metadata matches Alembic head
-make ingest-demo # ingest every GP in DEMO_SEASON (2024 by default)
-make train-pace  # prebuild one race-cutoff Engineer Mode pace artifact
-make api         # FastAPI with reload
-make web         # Next.js development server
-make test        # pytest + Vitest
-make lint        # Ruff + ESLint
-make format      # Ruff formatter + Prettier
-make diagnose    # inspect British GP uncertainty inputs/fallbacks
-make benchmark   # benchmark 1,000 runs across three strategies
-make db-down     # stop PostgreSQL
+PYTHONPATH=apps/api .venv/bin/python -m app.ingestion.cli ingest-season --year 2023
 ```
 
-Change `DEMO_SEASON` in `.env` to select a different complete demo season. The
-single-race CLI still accepts FastF1's documented event name or round selector.
+Load a single race:
 
-Historical teams belong to race entries, not to the mutable global driver
-record. After upgrading an existing database, populate the new event-specific
-column without re-ingesting lap data:
+```bash
+PYTHONPATH=apps/api .venv/bin/python -m app.ingestion.cli ingest-race \
+  --year 2024 \
+  --event "Italian Grand Prix"
+```
+
+Force-refresh an existing race:
+
+```bash
+PYTHONPATH=apps/api .venv/bin/python -m app.ingestion.cli ingest-race \
+  --year 2024 \
+  --event "British Grand Prix" \
+  --force
+```
+
+## Development Commands
+
+```bash
+make db-up            # Start PostgreSQL
+make migrate          # Upgrade schema to Alembic head
+make migration-check  # Verify ORM metadata matches Alembic head
+make ingest-demo      # Ingest every GP in DEMO_SEASON
+make train-pace       # Prebuild one race-cutoff Engineer Mode pace artifact
+make api              # Start FastAPI with reload
+make web              # Start Next.js development server
+make test             # Run pytest + Vitest
+make lint             # Run Ruff + ESLint
+make format           # Run Ruff formatter + Prettier
+make diagnose         # Inspect British GP uncertainty inputs/fallbacks
+make benchmark        # Benchmark 1,000 runs across three strategies
+make db-down          # Stop PostgreSQL
+```
+
+Change `DEMO_SEASON` in `.env` to select a different complete demo season. The single-race CLI accepts FastF1's documented event name or round selector.
+
+## Historical Team Backfill
+
+Historical teams belong to race entries rather than the mutable global driver record.
+
+After upgrading an existing database, populate the event-specific team column without re-ingesting lap data:
 
 ```bash
 make migrate
 make backfill-entry-teams
 ```
 
-The backfill loads only FastF1 session results and may be limited to one season
-or event with the CLI's `--year` and `--event` options.
+The backfill loads only FastF1 session results and can be limited with the CLI's `--year` and `--event` options.
 
-## API
+## API Endpoints
 
-- `GET /api/v1/health`
-- `GET /api/v1/seasons`
-- `GET /api/v1/events?season=2024`
-- `GET /api/v1/events/{event_id}`
-- `GET /api/v1/events/{event_id}/sessions`
-- `GET /api/v1/sessions/{session_id}/drivers`
-- `GET /api/v1/sessions/{session_id}/laps?driver_id=1&page=1&page_size=100`
-- `GET /api/v1/sessions/{session_id}/race-state?lap=20&driver_id=3`
-- `GET /api/v1/sessions/{session_id}/timeline?driver_id=3`
-- `GET /api/v1/sessions/{session_id}/actual-strategy/{driver_id}?control_lap=20`
-- `POST /api/v1/simulations/compare`
-- `GET /api/v1/simulations/{comparison_id}`
-- `POST /api/v1/admin/ingest`
-
-The HTTP ingestion endpoint is available for local development only. When
-`APP_ENV=production` (or `prod`) it returns `403`; use the ingestion CLI before
-deploying the release database.
-
-## Data and modeling notes
-
-FastF1 supplies schedule metadata, session results, laps, tyres, weather, and
-race-control messages. Values are checked for missingness and timedeltas become
-integer milliseconds. Telemetry is disabled in this milestone to reduce
-download size and CPU/memory use; speed-trap fields are lap timing channels, not
-high-frequency telemetry. See [data sources](docs/data-sources.md).
-
-The deterministic engine anchors each counterfactual to the recorded race
-outcome and remains available beside every result. Phase 5 samples bounded
-lap-time, persistent pace, tyre-degradation, pit-loss, tyre-warm-up, traffic,
-and nearby-competitor uncertainty around that anchor. It uses NumPy
-`Generator` instances and stable child seeds; the same request and seed return
-the same aggregates, and candidate ordering does not change a candidate's
-samples. See [simulation methodology](docs/simulation.md).
-
-Engineer Mode additionally uses `hgb-pace-v2`, a local scikit-learn
-histogram-gradient-boosting model, when enough earlier-race evidence exists.
-It predicts nonlinear driver/compound/tyre-age pace relative to the same-lap
-field median and adapts from completed laps only. The selected driver's future
-laps are excluded. Artifacts are built on first use or can be prebuilt:
-
-```bash
-YEAR=2023 EVENT="Canadian Grand Prix" DRIVER_NUMBER=18 CONTROL_LAP=32 make train-pace
+```text
+GET  /api/v1/health
+GET  /api/v1/seasons
+GET  /api/v1/events?season=2024
+GET  /api/v1/events/{event_id}
+GET  /api/v1/events/{event_id}/sessions
+GET  /api/v1/sessions/{session_id}/drivers
+GET  /api/v1/sessions/{session_id}/laps?driver_id=1&page=1&page_size=100
+GET  /api/v1/sessions/{session_id}/race-state?lap=20&driver_id=3
+GET  /api/v1/sessions/{session_id}/timeline?driver_id=3
+GET  /api/v1/sessions/{session_id}/actual-strategy/{driver_id}?control_lap=20
+POST /api/v1/simulations/compare
+GET  /api/v1/simulations/{comparison_id}
+POST /api/v1/admin/ingest
 ```
 
-The deterministic pace estimator remains the fallback for early or sparse
-historical cutoffs. Pit, weather, tyre-safety, tyre failure, and classification
-rules remain outside the learned pace model. Tyre life itself is calibrated per
-event and compound from every driver's stint: pit-ended sets estimate the
-competitive window, race-ending sets are treated as censored survival evidence,
-and sparse compounds use labelled priors. Health is cumulative and cannot
-recover without a pit stop. Pace loss is then applied once in seconds/lap using
-`0.015w + 0.00225w² + 0.006max(0,w-50)²`, where `w = 100-health`.
-This produces +4.2 s/lap at 60% health. Exactly 5.0% survives; strictly below
-5.0% terminates the current lap with `TYRE_FAILURE` and generates no future laps.
+The HTTP ingestion endpoint is intended for local development only. When `APP_ENV=production` or `APP_ENV=prod`, it returns `403`. Production data should be ingested through the CLI before deployment.
 
-Engineer Mode also owns its stint counter and absolute elapsed time. Each user
-pit call increments the player stint exactly once; recorded stops never change
-it. Once the recorded leader finishes, the player's next line crossing ends
-their race. Classification first compares completed laps and only compares
-elapsed times among cars on the same lap, so a lapped player cannot be shown
-ahead of a full-distance finisher.
+## Data and Modeling
 
-Probabilities are frequencies within this model—not bookmaker odds or
-guaranteed real-world confidence. Safety Car/VSC and new mechanical failures
-are not sampled; their recorded historical effects remain in the deterministic
-anchor. Competitors retain their actual trajectories and do not strategically
-react to the user's choice.
+FastF1 supplies:
 
-Inspect or time the model against the ingested 2024 British Grand Prix:
+- Schedule metadata
+- Session results
+- Laps
+- Tyres
+- Weather
+- Race-control messages
+
+Values are checked for missingness, and timedeltas are converted to integer milliseconds.
+
+High-frequency telemetry is disabled in the current milestone to reduce download size and CPU/memory usage. Speed-trap fields are lap-timing channels rather than full telemetry streams.
+
+See [`docs/data-sources.md`](docs/data-sources.md).
+
+## Strategy Simulation
+
+The deterministic engine anchors each counterfactual to the recorded race outcome and remains available beside every result.
+
+Monte Carlo simulation samples bounded uncertainty around that anchor, including:
+
+- Lap-time variation
+- Persistent pace variation
+- Tyre degradation
+- Pit loss
+- Tyre warm-up
+- Traffic
+- Nearby-competitor effects
+
+Simulations use NumPy `Generator` instances and stable child seeds. The same request and seed produce the same aggregates, and candidate ordering does not alter a candidate's samples.
+
+See [`docs/simulation.md`](docs/simulation.md).
+
+## Engineer Mode Pace Model
+
+Engineer Mode can use `hgb-pace-v2`, a local scikit-learn histogram-gradient-boosting model, when enough earlier-race evidence exists.
+
+It predicts nonlinear driver / compound / tyre-age pace relative to the same-lap field median and adapts only from completed laps. The selected driver's future laps are excluded from training evidence.
+
+Artifacts are built on first use or can be prebuilt manually:
+
+```bash
+YEAR=2023 \
+EVENT="Canadian Grand Prix" \
+DRIVER_NUMBER=18 \
+CONTROL_LAP=32 \
+make train-pace
+```
+
+The deterministic pace estimator remains the fallback for early or sparse historical cutoffs.
+
+Pit rules, weather rules, tyre-safety rules, tyre failure, and classification logic remain outside the learned pace model.
+
+## Tyre Model
+
+Tyre life is calibrated per event and compound using every driver's stint.
+
+- Pit-ended sets estimate the competitive window
+- Race-ending sets are treated as censored survival evidence
+- Sparse compounds fall back to labelled priors
+- Tyre health is cumulative and cannot recover without a pit stop
+
+Pace loss is applied once in seconds per lap using:
+
+```text
+0.015w + 0.00225w² + 0.006max(0, w - 50)²
+```
+
+where:
+
+```text
+w = 100 - health
+```
+
+This produces approximately `+4.2 s/lap` at `60%` tyre health.
+
+Exactly `5.0%` health survives. Strictly below `5.0%` terminates the current lap with `TYRE_FAILURE` and generates no future laps.
+
+## Race-State and Classification Rules
+
+Engineer Mode owns its own stint counter and absolute elapsed time.
+
+- Each user pit call increments the player stint exactly once
+- Recorded stops never alter the player stint counter
+- Once the recorded leader finishes, the player's next line crossing ends their race
+- Classification compares completed laps first
+- Elapsed time is compared only among cars on the same lap
+
+This prevents a lapped player from being classified ahead of a full-distance finisher.
+
+## Model Limitations
+
+Probabilities are frequencies within this model, not bookmaker odds or guaranteed real-world confidence.
+
+The current simulation does **not** sample new:
+
+- Safety Cars
+- Virtual Safety Cars
+- Mechanical failures
+
+Their recorded historical effects remain part of the deterministic anchor.
+
+Competitors also retain their actual historical trajectories and do not strategically react to the user's choices.
+
+## Diagnostics and Benchmarking
+
+Inspect the model against the ingested 2024 British Grand Prix:
 
 ```bash
 PYTHONPATH=apps/api .venv/bin/python -m app.simulation.cli diagnose \
-  --year 2024 --event "British Grand Prix"
-PYTHONPATH=apps/api .venv/bin/python -m app.simulation.cli benchmark \
-  --year 2024 --event "British Grand Prix" --simulation-count 1000 --random-seed 42
+  --year 2024 \
+  --event "British Grand Prix"
 ```
 
-## Testing and verification
+Benchmark 1,000 simulation runs across three strategies:
 
-Backend tests additionally cover seeded reproducibility, seed variation,
-candidate-order independence, bounded distributions, percentile/probability
-invariants, labelled fallbacks, persistence, and retired-driver safety.
-Frontend tests cover simulation count/seed controls, distribution rendering,
-assumptions, and API retry behavior. CI runs test/lint suites and a production
-web build.
+```bash
+PYTHONPATH=apps/api .venv/bin/python -m app.simulation.cli benchmark \
+  --year 2024 \
+  --event "British Grand Prix" \
+  --simulation-count 1000 \
+  --random-seed 42
+```
 
-## Limitations
+## Testing and Verification
 
-- Only race sessions from 2018 onward are accepted by this first ingestion CLI.
-- Provider gaps can leave nullable values; the UI renders these as unavailable.
-- `circuit_name` remains nullable because the verified FastF1 event-schedule
-  schema exposes country and location but not a canonical circuit-name column.
-- Pit intervals use calculated pit-in/out session timestamps. They are not
-  stationary stop times and are kept null when no valid pair exists.
-- Driver number is the current limited-scope identity key; broader historical
-  coverage will require a stable provider driver ID migration.
-- The global driver row is retained as current/fallback metadata. Historical
-  APIs use the race entry's name, abbreviation, country, and team snapshots, so
-  later transfers or reused car numbers do not rewrite old grids.
-- Ingestion is synchronous and intended as an admin/development operation.
-- Competitors remain anchored to recorded trajectories and do not strategically
-  react to the counterfactual; this is not a full 20-car behavioral simulator.
-- No new mechanical DNF, Safety Car, VSC, weather transition, red flag, or
-  regulation-level intervention behavior is simulated in Phase 5.
-- Races with changing conditions preserve those conditions through the
-  recorded-time anchor, but the current strategy builder offers only dry
-  compounds; use extra caution interpreting calls that cross wet periods.
-- Traffic risk is a bounded rejoin-window heuristic. Warm-up assumptions are
-  conservative fallbacks where the public data cannot isolate the effect.
-- Tyre health is an event-calibrated gameplay index, not telemetry from the
-  tyre carcass. Strategy choices and race-ending stints mean observed stint
-  length is censored rather than a direct measurement of physical failure life.
+Backend tests cover:
 
-## Roadmap
+- Seeded reproducibility
+- Seed variation
+- Candidate-order independence
+- Bounded distributions
+- Percentile and probability invariants
+- Labelled fallbacks
+- Persistence
+- Retired-driver safety
 
-1. Completed: Phases 1–6 data foundation, race state, deterministic strategy,
-   seeded Monte Carlo distributions, and interactive race-engineer experience.
-2. Completed correction: leakage-safe, chronologically validated CPU Engineer
-   Mode pace model with persisted artifacts and deterministic fallback.
-3. Future product work: calibrated incident/weather scenarios, real circuit
-   geometry, multi-race evaluation, polish, and deployment.
+Frontend tests cover:
 
-## Historical-counterfactual disclaimer
+- Simulation-count controls
+- Random-seed controls
+- Distribution rendering
+- Assumptions
+- API retry behavior
 
-This project uses publicly available data and does not reproduce proprietary
-team simulators. Predictions are estimates, not proof that a team made a wrong
-decision. Weather, driver behaviour, team orders, mechanical
-conditions, and competitors' responses can only be approximated.
+CI runs test and lint suites plus a production web build.
 
-## Resume-ready description
+## Historical Counterfactual Disclaimer
 
-Built a typed Next.js/FastAPI motorsport data platform that ingests and caches
-historical Formula 1 sessions, reconstructs end-of-lap race state, and serves an
-accessible strategy lab with a preserved deterministic baseline plus seeded,
-vectorized Monte Carlo distributions, persisted counterfactuals, explicit
-fallback metadata, contract validation, diagnostics, and tests.
+This project uses publicly available data and does not reproduce proprietary Formula 1 team simulators.
+
+Predictions are estimates, not proof that a team made an incorrect decision. Weather, driver behavior, team orders, mechanical conditions, and competitors' responses can only be approximated.
+
+---
+
+**Try Apex Strategist:** https://apex-strategist-web.vercel.app/
